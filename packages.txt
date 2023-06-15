@@ -1,0 +1,4 @@
+imagemagick
+potrace
+openscad
+xvfb
