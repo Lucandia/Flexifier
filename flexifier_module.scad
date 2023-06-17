@@ -18,7 +18,7 @@ difference(){
 
 translate([X_TRAN_HINGE,Y_TRAN_HINGE,0])
 rotate([0,0,ROTATE_HINGE])
-diff_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS break_len=CUT_LENGTH);
+diff_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS, break_len=CUT_LENGTH);
 };
 
 translate([X_TRAN_HINGE, Y_TRAN_HINGE,0])
