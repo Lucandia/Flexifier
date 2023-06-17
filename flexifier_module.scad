@@ -1,4 +1,30 @@
 $fn=50;
+/*
+ * Desk Organizer Generator library
+ * License: Creative Commons - Non Commercial - Share Alike License 4.0 (CC BY-NC-SA 4.0)
+ * Copyright: Luca Monari 2023
+ * URL: https://github.com/lmonari5/desk_organizer_generator.git
+
+The program uses the honeycomb library from Gael Lafond, from https://www.thingiverse.com/thing:2484395.
+
+To add a hinge try:
+```
+difference(){
+  linear_extrude(height = HEIGHT) // extrude the svg
+    translate(v=[X_TRAN,Y_TRAN,0]) // translate the svg image
+      rotate(a=[0,0,Z_DEG]) // rotate the svg image
+        scale([X_SCALE,Y_SCALE,1]) // scale the X and Y axis of the svg
+            import(file = "YOUR_PATH/YOUR_FILE.svg", center = true);
+
+translate([X_TRAN_HINGE,Y_TRAN_HINGE,0])
+rotate([0,0,ROTATE_HINGE])
+diff_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS break_len=CUT_LENGTH);
+};
+
+translate([X_TRAN_HINGE, Y_TRAN_HINGE,0])
+rotate([0,0,ROTATE_HINGE])
+uni_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS);
+*/
 
 module uni_hinge(height, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer=2){
 hinge_pin_diam = (height-vert_tolerance)/3;
