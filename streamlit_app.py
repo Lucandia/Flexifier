@@ -37,12 +37,12 @@ def figure_mesh(filename):
               i=I,
               j=J,
               k=K,
-              name='soap_dish_mesh',
+              name='mesh',
               showscale=False,
               colorscale=colorscale, 
               intensity=z,
               flatshading=True,)
-  title = "Soap dish mesh"
+  title = "mesh"
   layout = go.Layout(
               paper_bgcolor='rgb(1,1,1)',
               title_text=None,# title_x=0.5, font_color='white',
@@ -70,9 +70,9 @@ def figure_mesh(filename):
 def build_hinges(hinges, template):
     union = str()
     difference = str()
-    for ind, h in enumerate(hinges.values()):
+    for ind, h in hinges.items():
         union = union + f"""
-color("{color[ind]}")
+color("{color[ind-1]}")
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
 uni_hinge({height}, hinge_h_thick={h['h_thick']}, break={h['h_break']});"""
@@ -86,7 +86,8 @@ diff_hinge({height}, hinge_h_thick={h['h_thick']}, break={h['h_break']}, break_l
 openscad_template = """
 $fn=50;
 
-module uni_hinge(height, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer=3.5){{
+module uni_hinge(height, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
+chamfer = break/10*chamfer_multi;
 hinge_pin_diam = (height-vert_tolerance)/3;
 // external hinge
 translate([0,0,height/2]) rotate([90,0,0])
@@ -101,11 +102,12 @@ square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), height]);}};
 // internal hole + tolerance
 circle(d=hinge_pin_diam+vert_tolerance);}};
 // internal pin
-translate([0,hinge_h_thick/2+hor_tolerance,height/2]) rotate([90,0,0])
-cylinder(h=(hinge_h_thick+hor_tolerance)*2, d=hinge_pin_diam);
+translate([0,hor_tolerance, height/2]) rotate([90,0,0])
+cylinder(h=hinge_h_thick+hor_tolerance*2, d=hinge_pin_diam);
 }};
 
-module diff_hinge(height, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer=3.5, break_len=200){{
+module diff_hinge(height, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
+chamfer = break/10*chamfer_multi;
 hinge_pin_diam = (height-vert_tolerance)/3;
 hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
 // line break
@@ -140,22 +142,22 @@ if __name__ == "__main__":
     if 'hinges' not in st.session_state:
         st.session_state['hinges'] = dict()
     hinges = st.session_state['hinges']
-    if len(hinges) > len(color)-2:
+    if hinges and max(list(hinges)) > len(color)-2:
         n_colors = len(hinges)//len(color)
         color = color * (n_colors+2)
-    if not hinges: #always start with at least one ing
+    if not hinges: #always start with at least one hinge
         ind = 1
         hinges[ind] = dict()
         hinges[ind]['h_tran'] = [0.0, 0.0]
         hinges[ind]['h_rot'] = 0.0
         hinges[ind]['h_thick'] = 5.0
-        hinges[ind]['h_break'] = 4.0
-        hinges[ind]['h_break_len'] = 200.0
+        hinges[ind]['h_break'] = 3.0
+        hinges[ind]['h_break_len'] = 100.0
         st.session_state['hinges'].update(hinges)
         st.experimental_rerun()
 
     st.title('Flexifier: make it flexi')
-    st.write('Generate flexi 3D models from images! You can find more information about the soap dish here on [Printables](Printable links).')
+    st.write('Generate flexi 3D models from images! You can find more information here [Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi).')
 
     col1, col2, = st.columns(2)
     # Input type 
@@ -220,6 +222,7 @@ if __name__ == "__main__":
         else: height = st.slider('Model height (mm)', 0.0, 100.0 , 10.0)
 
 
+        def_values = [[0.0, 0.0], 0.0, 5.0, 3.0, 100.0]
         col1, col2, col3 = st.columns(3)
         with col1:
             ref = st.selectbox('Select Hinge', sorted(list(hinges), reverse=True))
@@ -228,13 +231,9 @@ if __name__ == "__main__":
             if st.button('Add'):
                 ind = max(list(hinges)) + 1
                 hinges[ind] = dict()
-                hinges[ind]['h_tran'] = [0.0, 0.0]
-                hinges[ind]['h_rot'] = 0.0
-                hinges[ind]['h_thick'] = 5.0
-                hinges[ind]['h_break'] = 4.0
-                hinges[ind]['h_break_len'] = 100.0
+                hinges[ind].update(hinges[ref])
                 st.session_state['hinges'].update(hinges)
-                st.experimental_rerun()
+                #st.experimental_rerun()
         with col3:
             st.write('Remove the selected hinge')
             if st.button('Remove'):
@@ -242,42 +241,41 @@ if __name__ == "__main__":
                     st.warning(f'Hinge {ref} not found. No hinge removed.', icon="⚠️")
                 else:
                     st.session_state['hinges'].pop(ref)
-                    st.experimental_rerun()
-        mod_hinge = st.checkbox(f'Modify hinge {ref}', value=True)
-        if mod_hinge:
-            col1, col2, col3 = st.columns(3)
-            # TRANSLATE
-            h_tran = [hinges[ref]['h_tran'][0], hinges[ref]['h_tran'][1]]
-            h_rot = hinges[ref]['h_rot']
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if numb: h_tran[0] = st.number_input('Move X', value=h_tran[0])
-                else: h_tran[0] = st.slider('Move X', -100.0, 100.0, value=h_tran[0])
-            with col2:
-                if numb: h_tran[1] = st.number_input('Move Y', value=h_tran[1])
-                else: h_tran[1] = st.slider('Move Y', -100.0, 100.0, value=h_tran[1])
-            with col3:
-                if numb: h_rot = st.number_input('Rotate', value=h_rot)
-                else: h_rot = st.slider('Rotate', 0.0, 360.0, value=h_rot)
+                    if st.session_state['hinges']:
+                        ref = sorted(list(st.session_state['hinges']), reverse=True)[0]
+                    else:
+                        st.experimental_rerun()
+        col1, col2, col3 = st.columns(3)
+        h_tran = [0.0, 0.0]
+        with col1:
+            if numb: h_tran[0] = st.number_input('Move X', value=def_values[0][0])
+            else: h_tran[0] = st.slider('Move X', -100.0, 100.0, value=def_values[0][0])
+        with col2:
+            if numb: h_tran[1] = st.number_input('Move Y', value=def_values[0][1])
+            else: h_tran[1] = st.slider('Move Y', -100.0, 100.0, value=def_values[0][1])
+        with col3:
+            if numb: h_rot = st.number_input('Rotate', value=def_values[1])
+            else: h_rot = st.slider('Rotate', 0.0, 360.0, value=def_values[1])
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if numb: h_thick = st.number_input('Hinge thickness', value=hinges[ref]['h_thick'])
-                else: h_thick = st.slider('Hinge thickness', 0.1, 100.0, value=hinges[ref]['h_thick'])
-            with col2:
-                if numb: h_break = st.number_input('Interruption thickness', value=hinges[ref]['h_break'])
-                else: h_break = st.slider('Interruption thickness',  0.1, 10.0, value=hinges[ref]['h_break'])
-            with col3:
-                if numb: h_break_len = st.number_input('Interruption length', value=hinges[ref]['h_break_len'])
-                else: h_break_len = st.slider('Interruption length', h_thick, 200.0, value=hinges[ref]['h_break_len'])
-            hinges[ref]['h_tran'] = h_tran
-            hinges[ref]['h_rot'] = h_rot
-            hinges[ref]['h_thick'] = h_thick
-            hinges[ref]['h_break'] = h_break
-            hinges[ref]['h_break_len'] = h_break_len
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if numb: h_thick = st.number_input('Hinge thickness', value=def_values[2])
+            else: h_thick = st.slider('Hinge thickness', 0.1, 10.0, value=def_values[2])
+        with col2:
+            if numb: h_break = st.number_input('Image cut thickness', value=def_values[3])
+            else: h_break = st.slider('Image cut thickness',  0.1, 10.0, value=def_values[3])
+        with col3:
+            if numb: h_break_len = st.number_input('Image cut length', value=def_values[4])
+            else: h_break_len = st.slider('Image cut length', h_thick, 200.0, value=def_values[4])
 
+        hinges[ref]['h_tran'] = h_tran
+        hinges[ref]['h_rot'] = h_rot
+        hinges[ref]['h_thick'] = h_thick
+        hinges[ref]['h_break'] = h_break
+        hinges[ref]['h_break_len'] = h_break_len
         st.session_state['hinges'].update(hinges)
         #PREPARE FILES
+
         # resize the scale of the svg
         templ = openscad_template.format(HEIGHT=height, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
         if st.session_state['hinges']:
@@ -304,8 +302,8 @@ if __name__ == "__main__":
                 st.error('OpenScad was not able to generate the preview', icon="🚨")
                 st.stop()
             colors_text = 'Preview image:'
-            for index in range(len(st.session_state['hinges'])):
-                colors_text += f' <span style="color:{color[index]}">Hinge {index+1},</span>'
+            for index in st.session_state['hinges']:
+                colors_text += f' <span style="color:{color[index-1]}">Hinge {index},</span>'
             st.markdown(colors_text, unsafe_allow_html=True)
             image = Image.open('preview.png')
             st.image(image, caption='Openscad preview')
@@ -316,7 +314,7 @@ if __name__ == "__main__":
                 st.stop()
             with open(f"file.stl", "rb") as file:
                 html = create_download_link(file.read(), "model")
-                st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/498850-desk-organizer-generator) to support the project!", unsafe_allow_html=True)
+                st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
                 st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
                 st.markdown(html, unsafe_allow_html=True)
             st.write('Interactive mesh preview:')
