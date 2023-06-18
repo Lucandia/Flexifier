@@ -36,7 +36,7 @@ translate([X_TRAN_HINGE, Y_TRAN_HINGE,0])
 rotate([0,0,ROTATE_HINGE])
 uni_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS);
 ```
-Replacing the capital variables with your values
+Replacing the capital variables with your values. The same approach can be used for the ball joint.
 
 ## Donate
 
