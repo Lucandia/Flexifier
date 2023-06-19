@@ -29,12 +29,12 @@ difference(){
 
 translate([X_TRAN_HINGE,Y_TRAN_HINGE,0])
 rotate([0,0,ROTATE_HINGE])
-diff_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS, break_len=CUT_LENGTH);
+diff_hinge(HEIGHT_HING, hinge_diam=HINGE_DIAMETER, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS, break_len=CUT_LENGTH);
 };
 
 translate([X_TRAN_HINGE, Y_TRAN_HINGE,0])
 rotate([0,0,ROTATE_HINGE])
-uni_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS);
+uni_hinge(HEIGHT_HING, hinge_diam=HINGE_DIAMETER, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS);
 ```
 Replacing the capital variables with your values. The same approach can be used for the ball joint.
 

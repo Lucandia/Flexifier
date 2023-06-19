@@ -76,40 +76,40 @@ def build_hinges(hinges, template):
     color("{color[ind-1]}")
     translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
     rotate([0,0,{h['h_rot']}])
-    uni_hinge({height}, hinge_h_thick={h['h_thick']}, break={h['h_break']});"""
+    uni_hinge({height}, hinge_diam={h['h_diam']}, hinge_h_thick={h['h_thick']}, break={h['h_break']});"""
             difference = difference + f"""
     translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
     rotate([0,0,{h['h_rot']}])
-    diff_hinge({height}, hinge_h_thick={h['h_thick']}, break={h['h_break']}, break_len={h['h_break_len']});"""
+    diff_hinge({height}, hinge_diam={h['h_diam']}, hinge_h_thick={h['h_thick']}, break={h['h_break']}, break_len={h['h_break_len']});"""
         elif h['type'] == 'ball':
             union = union + f"""
 color("{color[ind-1]}")
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
-uni_ball({height}, ball_diam={h['h_thick']}, break={h['h_break']});"""
+uni_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']});"""
             difference = difference + f"""
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
-diff_ball({height}, ball_diam={h['h_thick']}, break={h['h_break']}, break_len={h['h_break_len']});"""
+diff_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']}, break_len={h['h_break_len']});"""
     return template + difference + '};\n' + union
 
 
 openscad_template = """
 $fn=50;
 
-module uni_hinge(height, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
+module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
 chamfer = break/10*chamfer_multi;
-hinge_pin_diam = (height-vert_tolerance)/3;
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
 // external hinge
 translate([0,0,height/2]) rotate([90,0,0])
 linear_extrude(hinge_h_thick)
 difference(){{
 // external circle
 union(){{
-circle(d=height);
+circle(d=hinge_diam);
 // squared cornern hing
-translate([0,-height/2,0])
-square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), height]);}};
+translate([0,-hinge_diam/2,0])
+square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), hinge_diam]);}};
 // internal hole + tolerance
 circle(d=hinge_pin_diam+vert_tolerance);}};
 // internal pin
@@ -117,9 +117,9 @@ translate([0,hor_tolerance, height/2]) rotate([90,0,0])
 cylinder(h=hinge_h_thick+hor_tolerance*2, d=hinge_pin_diam);
 }};
 
-module diff_hinge(height, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
+module diff_hinge(height, hinge_diam=5, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
 chamfer = break/10*chamfer_multi;
-hinge_pin_diam = (height-vert_tolerance)/3;
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
 hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
 // line break
 linear_extrude(height)
@@ -133,9 +133,9 @@ rotate([0, 45, 0])
 linear_extrude(chamfer)
 square([chamfer, break_len]);}};
 // square for difference
-translate([-hor_tolerance/2-hinge_v_thick/2,+hor_tolerance,height/2]) rotate([90,0,0])
+translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
 linear_extrude(hinge_h_thick+hor_tolerance*2)
-square([height+hor_tolerance-hinge_v_thick, height], center=true);
+square([hinge_diam+hor_tolerance, height], center=true);
 }};
 
 
@@ -167,7 +167,6 @@ translate([break/4, 0, hole_offest]) linear_extrude(ball_diam) square([ball_diam
 }};
 
 difference(){{
-  color("yellow",0.5)
   linear_extrude(height = {HEIGHT})
     translate(v=[{X_TRAN},{Y_TRAN},0])
       rotate(a=[0,0,{Z_DEG}])
@@ -270,6 +269,7 @@ if __name__ == "__main__":
                     hinges[ind]['h_thick'] = 5.0
                     hinges[ind]['h_break'] = 3.0
                     hinges[ind]['h_break_len'] = 100.0
+                    hinges[ind]['h_diam'] = height
                     st.session_state['hinges'].update(hinges)
                     st.experimental_rerun()
                 else:
@@ -308,18 +308,17 @@ if __name__ == "__main__":
                 if numb: h_rot = st.number_input('Rotate', value=def_values[1])
                 else: h_rot = st.slider('Rotate', 0.0, 360.0, value=def_values[1])
 
-            col1, col2, col3 = st.columns(3)
+            if hinges[ref]['type'] == 'ball': col1, col2, col3 = st.columns(3)
+            else: col_special, col1, col2, col3 = st.columns(4)
+            if hinges[ref]['type'] == 'normal':
+                with col_special:
+                    if numb: h_thick = st.number_input('Hinge thickness', value=def_values[2])
+                    else: h_thick = st.slider('Hinge thickness', 0.1, 20.0, value=def_values[2])
+            else:
+                h_thick = def_values[2]
             with col1:
-                if hinges[ref]['type'] == 'ball':
-                    label = 'Ball joint diameter'
-                    def_values[2] = height
-                    max_h_thick = height
-                else:
-                    label = 'Hinge thickness'
-                    def_values[2] = 5.0
-                    max_h_thick = 10.0
-                if numb: h_thick = st.number_input(label, value=def_values[2])
-                else: h_thick = st.slider(label, 0.1, max_h_thick, value=def_values[2])
+                if numb: h_diam = st.number_input('Joint external diameter', value=def_values[2])
+                else: h_diam = st.slider('Joint external diameter', 0.1, height, value=height)
             with col2:
                 if numb: h_break = st.number_input('Image cut thickness', value=def_values[3])
                 else: h_break = st.slider('Image cut thickness',  0.1, 10.0, value=def_values[3])
@@ -330,52 +329,51 @@ if __name__ == "__main__":
             hinges[ref]['h_tran'] = h_tran
             hinges[ref]['h_rot'] = h_rot
             hinges[ref]['h_thick'] = h_thick
+            hinges[ref]['h_diam'] = h_diam
             hinges[ref]['h_break'] = h_break
             hinges[ref]['h_break_len'] = h_break_len
             st.session_state['hinges'].update(hinges)
-            #PREPARE FILES
+        #PREPARE FILES
+        preview = False
+        if not st.button('Render'):
+            preview = True
+        if preview: height_model = height/2
+        else: height_model = height
+        # resize the scale of the svg
+        templ = openscad_template.format(HEIGHT=height_model, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
+        run = build_hinges(st.session_state['hinges'], templ)
+        with open('run.scad', 'w') as f:
+            f.write(run)
+        if preview:
+            subprocess.run('xvfb-run -a openscad -o preview.png --camera 0,0,0,0,0,0,0 --autocenter --viewall --view axes,scales  --projection=ortho run.scad', shell = True)
+        else:
+            start = time.time()
+            # run openscad
+            with st.spinner('Rendering in progress...'):
+                subprocess.run(f'openscad run.scad -o file.stl', shell = True)
+            end = time.time()
+            st.success(f'Rendered in {int(end-start)} seconds', icon="✅")
 
-            # resize the scale of the svg
-            templ = openscad_template.format(HEIGHT=height, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
-            if st.session_state['hinges']:
-                run = build_hinges(st.session_state['hinges'], templ)
-            else:
-                st.stop
-            with open('run.scad', 'w') as f:
-                f.write(run)
-            preview = False
-            if not st.button('Render'):
-                preview = True
-            if preview:
-                subprocess.run('xvfb-run -a openscad -o preview.png --camera 0,0,0,0,0,0,0 --autocenter --viewall --view axes,scales  --projection=ortho run.scad', shell = True)
-            else:
-                start = time.time()
-                # run openscad
-                with st.spinner('Rendering in progress...'):
-                    subprocess.run(f'openscad run.scad -o file.stl', shell = True)
-                end = time.time()
-                st.success(f'Rendered in {int(end-start)} seconds', icon="✅")
-
-            if preview:
-                if 'preview.png' not in os.listdir():
-                    st.error('OpenScad was not able to generate the preview', icon="🚨")
-                    st.stop()
-                colors_text = 'Preview image:'
-                for index in st.session_state['hinges']:
-                    colors_text += f' <span style="color:{color[index-1]}">Hinge {index},</span>'
-                st.markdown(colors_text, unsafe_allow_html=True)
-                image = Image.open('preview.png')
-                st.image(image, caption='Openscad preview')
-                image.close()
-            else:
-                if 'file.stl' not in os.listdir():
-                    st.error('OpenScad was not able to generate the mesh', icon="🚨")
-                    st.stop()
-                with open(f"file.stl", "rb") as file:
-                    html = create_download_link(file.read(), "model")
-                    st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
-                    st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
-                    st.markdown(html, unsafe_allow_html=True)
-                st.write('Interactive mesh preview:')
-                st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
+        if preview:
+            if 'preview.png' not in os.listdir():
+                st.error('OpenScad was not able to generate the preview', icon="🚨")
+                st.stop()
+            colors_text = 'Preview image:'
+            for index in st.session_state['hinges']:
+                colors_text += f' <span style="color:{color[index-1]}">Hinge {index},</span>'
+            st.markdown(colors_text, unsafe_allow_html=True)
+            image = Image.open('preview.png')
+            st.image(image, caption='Openscad preview')
+            image.close()
+        else:
+            if 'file.stl' not in os.listdir():
+                st.error('OpenScad was not able to generate the mesh', icon="🚨")
+                st.stop()
+            with open(f"file.stl", "rb") as file:
+                html = create_download_link(file.read(), "model")
+                st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
+                st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
+                st.markdown(html, unsafe_allow_html=True)
+            st.write('Interactive mesh preview:')
+            st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
 

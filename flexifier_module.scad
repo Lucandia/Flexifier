@@ -26,28 +26,29 @@ rotate([0,0,ROTATE_HINGE])
 uni_hinge(HEIGHT_HING, hinge_h_thick=HINGE_THICKNESS, break=CUT_THICKNESS);
 */
 
-module uni_hinge(height, hinge_h_thick=5, vert_tolerance=0.4*2, break=4, hor_tolerance=0.2, chamfer=2){
-hinge_pin_diam = (height-vert_tolerance)/3;
+module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){
+chamfer = break/10*chamfer_multi;
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
 // external hinge
 translate([0,0,height/2]) rotate([90,0,0])
 linear_extrude(hinge_h_thick)
 difference(){
 // external circle
 union(){
-circle(d=height);
+circle(d=hinge_diam);
 // squared cornern hing
-translate([0,-height/2,0])
-square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), height]);};
+translate([0,-hinge_diam/2,0])
+square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), hinge_diam]);};
 // internal hole + tolerance
 circle(d=hinge_pin_diam+vert_tolerance);};
 // internal pin
-// internal pin
 translate([0,hor_tolerance, height/2]) rotate([90,0,0])
-cylinder(h=hinge_h_thick+hor_tolerance*2, d=hinge_pin_diam)
-;};
+cylinder(h=hinge_h_thick+hor_tolerance*2, d=hinge_pin_diam);
+};
 
-module diff_hinge(height, hinge_h_thick=5, hor_tolerance=0.2, vert_tolerance=0.4*2, break=4, chamfer=2, break_len=200){
-hinge_pin_diam = (height-vert_tolerance)/3;
+module diff_hinge(height, hinge_diam=5, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){
+chamfer = break/10*chamfer_multi;
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
 hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
 // line break
 linear_extrude(height)
@@ -61,9 +62,9 @@ rotate([0, 45, 0])
 linear_extrude(chamfer)
 square([chamfer, break_len]);};
 // square for difference
-translate([-hor_tolerance/2-hinge_v_thick/2,+hor_tolerance,height/2]) rotate([90,0,0])
+translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
 linear_extrude(hinge_h_thick+hor_tolerance*2)
-square([height+hor_tolerance-hinge_v_thick, height], center=true);
+square([hinge_diam+hor_tolerance, height], center=true);
 };
 
 module uni_ball(height, ball_diam=5, tolerance=0.4, break=3){
