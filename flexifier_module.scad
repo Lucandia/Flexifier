@@ -54,6 +54,10 @@ hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
 linear_extrude(height)
 translate([(hinge_pin_diam+vert_tolerance)/2,-break_len/2-hinge_h_thick/2,0])
 square([break/2, break_len]);
+// square for difference
+translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
+linear_extrude(hinge_h_thick+hor_tolerance*2)
+square([hinge_diam+hor_tolerance, height], center=true);
 //chamfer bottom and top
 for (i=[0, height]){
 translate([(hinge_pin_diam+vert_tolerance)/2+break/4,-break_len/2-hinge_h_thick/2,i])
@@ -61,11 +65,8 @@ translate([-chamfer*sqrt(2)/2,0,0])
 rotate([0, 45, 0])
 linear_extrude(chamfer)
 square([chamfer, break_len]);};
-// square for difference
-translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
-linear_extrude(hinge_h_thick+hor_tolerance*2)
-square([hinge_diam+hor_tolerance, height], center=true);
 };
+
 
 module uni_ball(height, ball_diam=5, tolerance=0.4, break=3){
 // internal ball left
@@ -73,12 +74,16 @@ translate([-ball_diam/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
 // internal ball right
 translate([ball_diam/2+break/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
 // connection cylinder
-translate([break/4, 0,height/2])  rotate([90, 0, 90])cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
+translate([break/4, 0,height/2])
+rotate([90, 0, 90])
+cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
 };
 
-module diff_ball(height, ball_diam=5, break=4, break_len=200){
+module diff_ball(height, ball_diam=5, break=4, break_len=200, expose=false, chamfer_multi=6){
+chamfer = break/10*chamfer_multi;
 // adding hole offset
-hole_offest = (height - ball_diam)/2;
+con_hole_height = expose ? height*2 : ball_diam;
+hole_offest = expose ? 0 : (height - ball_diam)/2;
 // line break
 linear_extrude(height+1)
 translate([0,-break_len/2,0])
@@ -87,7 +92,17 @@ square([break/2, break_len]);
 translate([-ball_diam/2, 0, height/2])
 sphere(r=ball_diam/2);
 // external ball right
-translate([ball_diam/2+break/2, 0, height/2]) sphere(r=ball_diam/2);
+translate([ball_diam/2+break/2, 0, height/2])
+sphere(r=ball_diam/2);
 // connection hole
-translate([break/4, 0, hole_offest]) linear_extrude(ball_diam) square([ball_diam+ball_diam/2+break/2, ball_diam/2], center=true);
+translate([break/4, 0, hole_offest])
+linear_extrude(con_hole_height)
+square([ball_diam+ball_diam/2+break/2, ball_diam/2], center=true);
+//chamfer bottom and top
+for (i=[0, height]){
+translate([break/4,-break_len/2,i])
+translate([-chamfer*sqrt(2)/2,0,0])
+rotate([0, 45, 0])
+linear_extrude(chamfer)
+square([chamfer, break_len]);};
 };

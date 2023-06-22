@@ -90,7 +90,7 @@ uni_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']});"""
             difference = difference + f"""
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
-diff_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']}, break_len={h['h_break_len']});"""
+diff_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']}, break_len={h['h_break_len']}, expose={h['h_expose']});"""
     return template + difference + '};\n' + union
 
 
@@ -125,6 +125,10 @@ hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
 linear_extrude(height)
 translate([(hinge_pin_diam+vert_tolerance)/2,-break_len/2-hinge_h_thick/2,0])
 square([break/2, break_len]);
+// square for difference
+translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
+linear_extrude(hinge_h_thick+hor_tolerance*2)
+square([hinge_diam+hor_tolerance, height], center=true);
 //chamfer bottom and top
 for (i=[0, height]){{
 translate([(hinge_pin_diam+vert_tolerance)/2+break/4,-break_len/2-hinge_h_thick/2,i])
@@ -132,10 +136,6 @@ translate([-chamfer*sqrt(2)/2,0,0])
 rotate([0, 45, 0])
 linear_extrude(chamfer)
 square([chamfer, break_len]);}};
-// square for difference
-translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
-linear_extrude(hinge_h_thick+hor_tolerance*2)
-square([hinge_diam+hor_tolerance, height], center=true);
 }};
 
 
@@ -150,9 +150,11 @@ rotate([90, 0, 90])
 cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
 }};
 
-module diff_ball(height, ball_diam=5, break=4, break_len=200){{
+module diff_ball(height, ball_diam=5, break=4, break_len=200, expose=false, chamfer_multi=6){{
+chamfer = break/10*chamfer_multi;
 // adding hole offset
-hole_offest = (height - ball_diam)/2;
+con_hole_height = expose ? height*2 : ball_diam;
+hole_offest = expose ? 0 : (height - ball_diam)/2;
 // line break
 linear_extrude(height+1)
 translate([0,-break_len/2,0])
@@ -161,9 +163,19 @@ square([break/2, break_len]);
 translate([-ball_diam/2, 0, height/2])
 sphere(r=ball_diam/2);
 // external ball right
-translate([ball_diam/2+break/2, 0, height/2]) sphere(r=ball_diam/2);
+translate([ball_diam/2+break/2, 0, height/2])
+sphere(r=ball_diam/2);
 // connection hole
-translate([break/4, 0, hole_offest]) linear_extrude(ball_diam) square([ball_diam+ball_diam/2+break/2, ball_diam/2], center=true);
+translate([break/4, 0, hole_offest])
+linear_extrude(con_hole_height)
+square([ball_diam+ball_diam/2+break/2, ball_diam/2], center=true);
+//chamfer bottom and top
+for (i=[0, height]){{
+translate([break/4,-break_len/2,i])
+translate([-chamfer*sqrt(2)/2,0,0])
+rotate([0, 45, 0])
+linear_extrude(chamfer)
+square([chamfer, break_len]);}};
 }};
 
 difference(){{
@@ -266,10 +278,11 @@ if __name__ == "__main__":
                     hinges[ind]['type'] = hinge_type
                     hinges[ind]['h_tran'] = [0.0, 0.0]
                     hinges[ind]['h_rot'] = 0.0
-                    hinges[ind]['h_thick'] = 5.0
                     hinges[ind]['h_break'] = 3.0
                     hinges[ind]['h_break_len'] = 100.0
                     hinges[ind]['h_diam'] = height
+                    hinges[ind]['h_thick'] = 5.0
+                    hinges[ind]['h_expose'] = "false"
                     st.session_state['hinges'].update(hinges)
                     st.experimental_rerun()
                 else:
@@ -308,27 +321,32 @@ if __name__ == "__main__":
                 if numb: h_rot = st.number_input('Rotate', value=def_values[1])
                 else: h_rot = st.slider('Rotate', 0.0, 360.0, value=def_values[1])
 
-            if hinges[ref]['type'] == 'ball': col1, col2, col3 = st.columns(3)
-            else: col_special, col1, col2, col3 = st.columns(4)
-            if hinges[ref]['type'] == 'normal':
-                with col_special:
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if hinges[ref]['type'] == 'normal':
+                    h_expose = "false"
                     if numb: h_thick = st.number_input('Hinge thickness', value=def_values[2])
                     else: h_thick = st.slider('Hinge thickness', 0.1, 20.0, value=def_values[2])
-            else:
-                h_thick = def_values[2]
-            with col1:
+                else:
+                    h_thick = def_values[2]
+                    h_expose = st.checkbox('Expose ball joint')
+                    if h_expose: h_expose = "true"
+                    else: h_expose = "false"
+            with col2:
                 if numb: h_diam = st.number_input('Joint external diameter', value=def_values[2])
                 else: h_diam = st.slider('Joint external diameter', 0.1, height, value=height)
-            with col2:
+            with col3:
                 if numb: h_break = st.number_input('Image cut thickness', value=def_values[3])
                 else: h_break = st.slider('Image cut thickness',  0.1, 10.0, value=def_values[3])
-            with col3:
+            with col4:
                 if numb: h_break_len = st.number_input('Image cut length', value=def_values[4])
                 else: h_break_len = st.slider('Image cut length', h_thick, 200.0, value=def_values[4])
 
             hinges[ref]['h_tran'] = h_tran
             hinges[ref]['h_rot'] = h_rot
             hinges[ref]['h_thick'] = h_thick
+            hinges[ref]['h_expose'] = h_expose
             hinges[ref]['h_diam'] = h_diam
             hinges[ref]['h_break'] = h_break
             hinges[ref]['h_break_len'] = h_break_len
