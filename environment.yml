@@ -314,4 +314,5 @@ dependencies:
   - numpy-stl
   - plotly
   - pillow
+  - streamlit
 prefix: C:\Users\monar\anaconda3\envs\cqdev
