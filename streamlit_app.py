@@ -270,15 +270,30 @@ if __name__ == "__main__":
         if numb: height = st.number_input('Model height (mm)', 0.0, 100.0 , 10.0)
         else: height = st.slider('Model height (mm)', 0.0, 100.0 , 10.0)
 
-        # CREATE DXF AND CALCULATE THE BOUNDING BOX
-        with open("svg_to_dxf.scad", 'w') as f:
-            f.write(svg_to_dxf.format(X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot))
-        subprocess.run(f'openscad svg_to_dxf.scad -o file.dxf', shell = True)
-        result = (cq.importers.importDXF("file.dxf").wires().toPending().extrude(height))
-        b_box = result.combine().objects[0].BoundingBox()
+        try:
+            # CREATE DXF AND CALCULATE THE BOUNDING BOX
+            with open("svg_to_dxf.scad", 'w') as f:
+                f.write(svg_to_dxf.format(X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot))
+            subprocess.run(f'openscad svg_to_dxf.scad -o file.dxf', shell = True)
+            result = (cq.importers.importDXF("file.dxf").wires().toPending().extrude(height))
+            b_box = result.combine().objects[0].BoundingBox()
+            xlen = b_box.xlen
+            ylen = b_box.ylen
+            xmin = b_box.xmin
+            xmax = b_box.xmax
+            ymin = b_box.ymin
+            ymax = b_box.ymax
+        except:
+            st.warning('Not able to calculate the bounding box', icon="⚠️")
+            xlen = 200
+            ylen = 200
+            xmin = -100
+            xmax = 100
+            ymin = -100
+            ymax = 100
 
 
-        def_values = {'h_tran': [0.0, 0.0], 'h_rot': 0.0, 'h_break': 3.0, 'h_break_len': b_box.ylen*2,
+        def_values = {'h_tran': [0.0, 0.0], 'h_rot': 0.0, 'h_break': 3.0, 'h_break_len': ylen*2,
                       'h_diam': height, 'h_thick': 5.0, 'h_expose': "false"}
 
         col1, col2, col3, col4 = st.columns(4)
@@ -330,10 +345,10 @@ if __name__ == "__main__":
             h_tran = [0.0, 0.0]
             with col1:
                 if numb: h_tran[0] = st.number_input('Move X', value=def_values['h_tran'][0])
-                else: h_tran[0] = st.slider('Move X', b_box.xmin, b_box.xmax, step=0.1, value=def_values['h_tran'][0])
+                else: h_tran[0] = st.slider('Move X', xmin, xmax, step=0.1, value=def_values['h_tran'][0])
             with col2:
                 if numb: h_tran[1] = st.number_input('Move Y', value=def_values['h_tran'][1])
-                else: h_tran[1] = st.slider('Move Y', b_box.ymin, b_box.ymax, step=0.1, value=def_values['h_tran'][1])
+                else: h_tran[1] = st.slider('Move Y', ymin, ymax, step=0.1, value=def_values['h_tran'][1])
             with col3:
                 if numb: h_rot = st.number_input('Rotate', value=def_values['h_rot'])
                 else: h_rot = st.slider('Rotate', 0.0, 360.0, step=0.1, value=def_values['h_rot'])
@@ -347,7 +362,7 @@ if __name__ == "__main__":
                     else: h_thick = st.slider('Hinge thickness', 0.1, 20.0, step=0.1, value=def_values['h_thick'])
                 else:
                     h_thick = def_values['h_thick']
-                    h_expose = st.checkbox('Expose ball joint')
+                    h_expose = st.checkbox('Expose ball joint', value=True)
                     if h_expose: h_expose = "true"
                     else: h_expose = "false"
             with col2:
@@ -358,7 +373,7 @@ if __name__ == "__main__":
                 else: h_break = st.slider('Image cut thickness',  0.1, 10.0, step=0.1, value=def_values['h_break'])
             with col4:
                 if numb: h_break_len = st.number_input('Image cut length', value=def_values['h_break_len'])
-                else: h_break_len = st.slider('Image cut length', h_thick, math.sqrt(b_box.ylen**2+b_box.xlen**2)*2, step=0.1, value=def_values['h_break_len'])
+                else: h_break_len = st.slider('Image cut length', h_thick, math.sqrt(ylen**2+xlen**2)*2, step=0.1, value=def_values['h_break_len'])
 
             hinges[ref]['h_tran'] = h_tran
             hinges[ref]['h_rot'] = h_rot
