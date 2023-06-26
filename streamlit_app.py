@@ -372,7 +372,7 @@ if __name__ == "__main__":
         ylen = st.session_state['ylen']
         xmin = st.session_state['xmin']
         xmax = st.session_state['xmax']
-        ymin = -st.session_state['ymin']
+        ymin = st.session_state['ymin']
         ymax = st.session_state['ymax']
 
 
@@ -453,7 +453,7 @@ if __name__ == "__main__":
                 else: h_diam = st.slider('Joint external diameter', 0.1, height, step=0.1, value=def_values['h_diam'])
             with col3:
                 if numb: h_break = st.number_input('Image cut thickness', value=def_values['h_break'])
-                else: h_break = st.slider('Image cut thickness',  0.1, 10.0, step=0.1, value=def_values['h_break'])
+                else: h_break = st.slider('Image cut thickness',  0.1, max([ylen, xlen]), step=0.1, value=def_values['h_break'])
             with col4:
                 if numb: h_break_len = st.number_input('Image cut length', value=def_values['h_break_len'])
                 else: h_break_len = st.slider('Image cut length', h_thick, math.sqrt(ylen**2+xlen**2)*2, step=0.1, value=def_values['h_break_len'])
