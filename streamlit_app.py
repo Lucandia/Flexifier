@@ -101,8 +101,59 @@ translate(v=[{X_TRAN},{Y_TRAN},0])
     scale([{X_SCALE},{Y_SCALE},1])
       import(file = "file.svg", center = true);
 """
+preview_template = """
+$fn=10;
 
-openscad_template = """
+module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
+chamfer = break/10*chamfer_multi;
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
+// external hinge
+translate([0,0,height/2]) rotate([90,0,0])
+linear_extrude(hinge_h_thick) {{
+// external circle
+circle(d=hinge_diam);
+// squared cornern hing
+translate([0,-hinge_diam/2,0])
+square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), hinge_diam]);}};
+}};
+
+module diff_hinge(height, hinge_diam=5, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
+hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
+// line break
+linear_extrude(height)
+translate([(hinge_pin_diam+vert_tolerance)/2,-break_len/2-hinge_h_thick/2,0])
+square([break/2, break_len]);
+}};
+
+
+module uni_ball(height, ball_diam=5, tolerance=0.4, break=3){{
+// internal ball left
+translate([-ball_diam/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
+// internal ball right
+translate([ball_diam/2+break/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
+// connection cylinder
+translate([break/4, 0,height/2])
+rotate([90, 0, 90])
+cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
+}};
+
+module diff_ball(height, ball_diam=5, break=4, break_len=200, expose=false, chamfer_multi=6){{
+chamfer = break/10*chamfer_multi;
+// line break
+linear_extrude(height+1)
+translate([0,-break_len/2,0])
+square([break/2, break_len]);
+}};
+
+difference(){{
+  linear_extrude(height = {HEIGHT})
+    translate(v=[{X_TRAN},{Y_TRAN},0])
+      rotate(a=[0,0,{Z_DEG}])
+        scale([{X_SCALE},{Y_SCALE},1])
+          import(file = "file.svg", center = true);
+"""
+
+run_template = """
 $fn=50;
 
 module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
@@ -204,6 +255,11 @@ if __name__ == "__main__":
     if hinges and max(list(hinges)) > len(color)-2:
         n_colors = len(hinges)//len(color)
         color = color * (n_colors+2)
+
+    # clean memory
+    for file in ['file.png', 'file.jpg', 'file.svg', 'file.jpeg', 'file.pnm', 'file.stl', 'preview.png']:
+        if file in os.listdir():
+            os.remove(file)
 
     st.title('Flexifier: make it flexi')
     st.write('Generate flexi 3D models from images! You can find more information here [Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi).')
@@ -387,8 +443,12 @@ if __name__ == "__main__":
         preview = False
         if not st.button('Render'):
             preview = True
-        if preview: height_model = height/2
-        else: height_model = height
+        if preview:
+            height_model = height/2
+            openscad_template = preview_template
+        else:
+            height_model = height
+            openscad_template = run_template
         # resize the scale of the svg
         templ = openscad_template.format(HEIGHT=height_model, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
         run = build_hinges(st.session_state['hinges'], templ)
@@ -419,11 +479,17 @@ if __name__ == "__main__":
             if 'file.stl' not in os.listdir():
                 st.error('OpenScad was not able to generate the mesh', icon="🚨")
                 st.stop()
+            st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
+            st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
             with open(f"file.stl", "rb") as file:
-                html = create_download_link(file.read(), "model")
-                st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
-                st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
-                st.markdown(html, unsafe_allow_html=True)
-            st.write('Interactive mesh preview:')
-            st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
+                btn = st.download_button(
+                        label="Download model",
+                        data=file,
+                        file_name="flexi.stl",
+                        mime="model/stl"
+                    )
+            #html = create_download_link(file.read(), "model")
+            #st.markdown(html, unsafe_allow_html=True)
+            #st.write('Interactive mesh preview:')
+            #st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
 
