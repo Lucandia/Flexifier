@@ -249,15 +249,20 @@ color = ['red', 'navy', 'green', 'purple', 'silver', 'orange', 'indigo', 'teal',
     'yellowgreen', 'cyan', 'cornflowerblue', 'magenta', 'tan', 'darkred', 'deeppink', 'olive', 'lightsalmon', 'mocassin', 'rosybrown']
 
 if __name__ == "__main__":
+    for key in ('xlen', 'ylen', 'xmin', 'xmax', 'ymin', 'ymax'):
+        if key not in st.session_state:
+            st.session_state[key] = 0
     if 'hinges' not in st.session_state:
         st.session_state['hinges'] = dict()
     hinges = st.session_state['hinges']
+    if 'image_value' not in st.session_state:
+        st.session_state['image_value'] = [0]
     if hinges and max(list(hinges)) > len(color)-2:
         n_colors = len(hinges)//len(color)
         color = color * (n_colors+2)
 
     # clean memory
-    for file in ['file.png', 'file.jpg', 'file.svg', 'file.jpeg', 'file.pnm', 'file.stl', 'preview.png']:
+    for file in ['file.stl', 'preview.png']:
         if file in os.listdir():
             os.remove(file)
 
@@ -280,14 +285,17 @@ if __name__ == "__main__":
         bytes_data = uploaded_file.getvalue()
         with open(f'file.{filetype}', 'wb') as f:
             f.write(bytes_data)
+        image_value = [bytes_data]
 
-        # avoid transparency in PNG, replace it with white
-        if filetype == 'png':
-            subprocess.run(f'convert file.{filetype} -background white -alpha remove -alpha off file.{filetype}', shell = True)
-        # convert the img to svg
-        if filetype != 'svg':
-            subprocess.run(f'convert file.{filetype} file.pnm', shell=True)
-            subprocess.run(f'potrace -s -o file.svg file.pnm', shell=True)
+        # calculate the svg if the imgage is different from the previous one
+        if image_value[0] != st.session_state['image_value'][0]:
+            # avoid transparency in PNG, replace it with white
+            if filetype == 'png':
+                subprocess.run(f'convert file.{filetype} -background white -alpha remove -alpha off file.{filetype}', shell = True)
+            # convert the img to svg
+            if filetype != 'svg':
+                subprocess.run(f'convert file.{filetype} file.pnm', shell=True)
+                subprocess.run(f'potrace -s -o file.svg file.pnm', shell=True)
     
         # MODIFY IMAGE
         col1, col2, col3 = st.columns(3)
@@ -303,50 +311,69 @@ if __name__ == "__main__":
         if scale:
             col1, col2, col3 = st.columns(3)
             with col1:
-                scales[0] = scales[0] * st.number_input('X scale %', min_value=0.0, value=100.0) / 100
+                if numb: scales[0] = scales[0] * st.number_input('X scale %', min_value=0.0, value=100.0) / 100
+                else: scales[0] = scales[0] * st.slider('X scale %', 0.0, 500.0, step=0.1, value=100.0) / 100
             with col2:
-                scales[1] = scales[1] * st.number_input('Y scale %', min_value=0.0, value=100.0) / 100
+                if numb: scales[1] = scales[1] * st.number_input('Y scale %', min_value=0.0, value=100.0) / 100
+                else: scales[1] = scales[1] * st.slider('Y scale %', 0.0, 500.0, step=0.1, value=100.0) / 100
+        image_value.append(scale)
 
         # TRANSLATE
         tran = [0.0, 0.0]
         if translate:
             col1, col2, col3 = st.columns(3)
             with col1:
-                tran[0] = st.number_input('Move X', value=0.0)
+                if numb: tran[0] = st.number_input('Move X', value=0.0)
+                else: tran[0] = st.slider('Move X', 0.0, 200.0, step=0.1, value=0.0)
             with col2:
-                tran[1] = st.number_input('Move Y', value=0.0)
+                if numb: tran[1] = st.number_input('Move Y', value=0.0)
+                else: tran[1] = st.slider('Move Y', 0.0, 200.0, step=0.1, value=0.0)
+        image_value.append(tran)
 
         # ROTATE
         rot = 0
         if rotate:
             col1, col2, col3 = st.columns(3)
             with col1:
-                rot = st.number_input(' Rotation Angle', value=0.0)
+                if numb: rot = st.number_input('Rotation Angle', value=0.0)
+                else: rot = st.slider('Rotation Angle', 0.0, 360.0, step=0.1, value=0.0)
+        image_value.append(rot)
+
 
         if numb: height = st.number_input('Model height (mm)', 0.0, 100.0 , 10.0)
         else: height = st.slider('Model height (mm)', 0.0, 100.0 , 10.0)
 
-        try:
-            # CREATE DXF AND CALCULATE THE BOUNDING BOX
-            with open("svg_to_dxf.scad", 'w') as f:
-                f.write(svg_to_dxf.format(X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot))
-            subprocess.run(f'openscad svg_to_dxf.scad -o file.dxf', shell = True)
-            result = (cq.importers.importDXF("file.dxf").wires().toPending().extrude(height))
-            b_box = result.combine().objects[0].BoundingBox()
-            xlen = b_box.xlen
-            ylen = b_box.ylen
-            xmin = b_box.xmin
-            xmax = b_box.xmax
-            ymin = b_box.ymin
-            ymax = b_box.ymax
-        except:
-            st.warning('Not able to calculate the bounding box', icon="⚠️")
-            xlen = 200
-            ylen = 200
-            xmin = -100
-            xmax = 100
-            ymin = -100
-            ymax = 100
+        # calculate bounding box only if it's a different image
+        if image_value != st.session_state['image_value']:
+            try:
+                print('CALCOLO DXF')
+                # CREATE DXF AND CALCULATE THE BOUNDING BOX
+                with open("svg_to_dxf.scad", 'w') as f:
+                    f.write(svg_to_dxf.format(X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot))
+                subprocess.run(f'openscad svg_to_dxf.scad -o file.dxf', shell = True)
+                result = (cq.importers.importDXF("file.dxf").wires().toPending().extrude(height))
+                b_box = result.combine().objects[0].BoundingBox()
+                st.session_state['xlen'] = b_box.xlen
+                st.session_state['ylen'] = b_box.ylen
+                st.session_state['xmin'] = b_box.xmin
+                st.session_state['xmax'] = b_box.xmax
+                st.session_state['ymin'] = b_box.ymin
+                st.session_state['ymax'] = b_box.ymax
+            except:
+                st.warning('Not able to calculate the bounding box', icon="⚠️")
+                st.session_state['xlen'] = 200
+                st.session_state['ylen'] = 200
+                st.session_state['xmin'] = -100
+                st.session_state['xmax'] = 100
+                st.session_state['ymin'] = -100
+                st.session_state['ymax'] = 100
+        st.session_state['image_value'] = image_value
+        xlen = st.session_state['xlen']
+        ylen = st.session_state['ylen']
+        xmin = st.session_state['xmin']
+        xmax = st.session_state['xmax']
+        ymin = -st.session_state['ymin']
+        ymax = st.session_state['ymax']
 
 
         def_values = {'h_tran': [0.0, 0.0], 'h_rot': 0.0, 'h_break': 3.0, 'h_break_len': ylen*2,
