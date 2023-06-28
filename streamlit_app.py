@@ -364,12 +364,12 @@ if __name__ == "__main__":
                 st.session_state['ymax'] = b_box.ymax
             except:
                 st.warning('Not able to calculate the bounding box', icon="⚠️")
-                st.session_state['xlen'] = 200
-                st.session_state['ylen'] = 200
-                st.session_state['xmin'] = -100
-                st.session_state['xmax'] = 100
-                st.session_state['ymin'] = -100
-                st.session_state['ymax'] = 100
+                st.session_state['xlen'] = 200.0
+                st.session_state['ylen'] = 200.0
+                st.session_state['xmin'] = -100.0
+                st.session_state['xmax'] = 100.0
+                st.session_state['ymin'] = -100.0
+                st.session_state['ymax'] = 100.0
         st.session_state['image_value'] = image_value
         xlen = st.session_state['xlen']
         ylen = st.session_state['ylen']
