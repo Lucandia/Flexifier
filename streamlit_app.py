@@ -451,7 +451,7 @@ if __name__ == "__main__":
             if 'preview.png' not in os.listdir():
                 st.error('OpenScad was not able to generate the preview', icon="🚨")
                 st.stop()
-            colors_text = 'Quick preview'
+            colors_text = 'Quick preview:'
             for index in st.session_state['hinges']:
                 colors_text = colors_text + f' <span style="color:{color[index-1]}">Hinge {index},</span>'
             st.markdown(colors_text, unsafe_allow_html=True)
