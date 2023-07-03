@@ -462,8 +462,6 @@ if __name__ == "__main__":
             if f'file.{out}' not in os.listdir():
                 st.error('The program was not ot able to generate the mesh', icon="🚨")
                 st.stop()
-            st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
-            st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
             with open(f'file.{out}', "rb") as file:
                 btn = st.download_button(
                         label=f"Download {out}",
@@ -476,4 +474,6 @@ if __name__ == "__main__":
             #if out=='stl':
                 #st.write('Interactive mesh preview:')
                 #st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
+        st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
+        st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
 
