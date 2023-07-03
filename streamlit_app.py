@@ -9,7 +9,10 @@ from PIL import Image
 import os
 import time
 import base64 # to download from html link
-import math
+from math import sqrt
+hor_tolerance= 0.4
+vert_tolerance= 0.8
+chamfer_multi = 1
 
 def create_download_link(val, filename):
     b64 = base64.b64encode(val)
@@ -69,7 +72,58 @@ def figure_mesh(filename):
   fig.write_html("file_stl.html")
   return fig
 
-def build_hinges(hinges, template):
+def cut_image(h, res):
+    chamfer = h['h_break']*chamfer_multi
+    # cut image
+    cut_im =  cq.Workplane('XY').box(h['h_break'], h['h_break_len'],height,centered=(1,1,0)).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    # chamfer
+    chamfer_top = cq.Workplane('XY').box(chamfer, h['h_break_len'],chamfer).rotate([0,0,0], [0,1,0], 45).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    chamfer_bot = cq.Workplane('XY').box(chamfer, h['h_break_len'],chamfer).rotate([0,0,0], [0,1,0], 45).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],height])
+    res -= cut_im + chamfer_top + chamfer_bot
+    return res
+
+def normal_hinge(h, res):
+    ### Diff part
+    chamfer = h['h_break']*chamfer_multi
+    pin_diam = (h['h_diam']-vert_tolerance)/3
+    x_hinge = -h['h_break']/2-pin_diam/2
+    res = cut_image(h, res)
+    # hinge hole
+    hole_h_im_x = (h['h_diam'] + pin_diam)/2 + hor_tolerance
+    hole_im = cq.Workplane('XY').box(hole_h_im_x, h['h_thick']+hor_tolerance*2,height,centered=(1,1,0)).translate([-hole_h_im_x/2-h['h_break']/2,0,0]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    res -= hole_im
+    ### Uni part
+    hole_diam = pin_diam + vert_tolerance
+    # hinge corner
+    # hinge_corn = cq.Workplane('XZ').box(cq.Workplane('XY').box(hole_h_im_x, h['h_thick']+hor_tolerance*2,height,centered=(1,1,0)).translate([-hole_h_im_x/2-h['h_break']/2,0,0]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])/2 + pin_diam/2+chamfer*sqrt(2),h['h_diam'], h['h_thick'], centered=(0,0,1)).translate([-h['h_break']/2 -pin_diam/2,0,height/2-h['h_diam']/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    hinge_corn = cq.Workplane('XZ').box(hole_h_im_x/2+chamfer*sqrt(2),h['h_diam'], h['h_thick'], centered=(0,0,1)).translate([-h['h_break']/2 -pin_diam/2,0,height/2-h['h_diam']/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    # External hinge
+    hinge_ext =  cq.Workplane('XZ').cylinder(h['h_thick'], h['h_diam']/2, centered=(1,0,1)).translate([x_hinge,0,height/2-h['h_diam']/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    hinge_hole =  cq.Workplane('XZ').cylinder(h['h_thick'], hole_diam/2, centered=(1,0,1)).translate([x_hinge,0,height/2-hole_diam/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    hinge_pin =  cq.Workplane('XZ').cylinder(h['h_thick']+hor_tolerance*2, pin_diam/2, centered=(1,0,1)).translate([x_hinge,0,height/2-pin_diam/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    res += hinge_corn + hinge_ext - hinge_hole + hinge_pin
+    return res
+
+def ball_joint(h, res):
+    res = cut_image(h, res)
+    hole_diam = h['h_diam']+vert_tolerance
+    ### Diff part
+    hole_im1 = cq.Workplane('XY').sphere(hole_diam/2).translate([-h['h_break']/2-hole_diam/2,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    hole_im2 = cq.Workplane('XY').sphere(hole_diam/2).translate([+h['h_break']/2+hole_diam/2,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    if h['h_expose']:
+        hole_join = cq.Workplane('XY').box(h['h_break']+(h['h_diam']/2+hor_tolerance)*2, h['h_diam']/2+hor_tolerance,height,centered=(1,1,0)).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    else:
+        hole_join = cq.Workplane('YZ').cylinder(h['h_break']+h['h_diam'], h['h_diam']/4+hor_tolerance).translate([0,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    res -= hole_im1 + hole_im2 + hole_join
+    ### Uni part
+    ball1 = cq.Workplane('XY').sphere(h['h_diam']/2).translate([-h['h_break']/2-hole_diam/2,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    ball2 = cq.Workplane('XY').sphere(h['h_diam']/2).translate([+h['h_break']/2+hole_diam/2,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    join = cq.Workplane('YZ').cylinder(h['h_break']+h['h_diam'], h['h_diam']/4).translate([0,0,height/2]).rotate([0,0,0], [0,0,1], h['h_rot']).translate([h['h_tran'][0],h['h_tran'][1],0])
+    res += ball1 + ball2 + join
+    return res
+
+
+def build_preview(hinges, template):
     union = str()
     difference = str()
     for ind, h in hinges.items():
@@ -79,20 +133,16 @@ def build_hinges(hinges, template):
     translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
     rotate([0,0,{h['h_rot']}])
     uni_hinge({height}, hinge_diam={h['h_diam']}, hinge_h_thick={h['h_thick']}, break={h['h_break']});"""
-            difference = difference + f"""
-    translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
-    rotate([0,0,{h['h_rot']}])
-    diff_hinge({height}, hinge_diam={h['h_diam']}, hinge_h_thick={h['h_thick']}, break={h['h_break']}, break_len={h['h_break_len']});"""
         elif h['type'] == 'ball':
             union = union + f"""
 color("{color[ind-1]}")
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
 uni_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']});"""
-            difference = difference + f"""
+        difference = difference + f"""
 translate([{h['h_tran'][0]},{h['h_tran'][1]},0])
 rotate([0,0,{h['h_rot']}])
-diff_ball({height}, ball_diam={h['h_diam']}, break={h['h_break']}, break_len={h['h_break_len']}, expose={h['h_expose']});"""
+diff({height}, break={h['h_break']}, break_len={h['h_break_len']});"""
     return template + difference + '};\n' + union
 
 svg_to_dxf = """
@@ -101,140 +151,40 @@ translate(v=[{X_TRAN},{Y_TRAN},0])
     scale([{X_SCALE},{Y_SCALE},1])
       import(file = "file.svg", center = true);
 """
+
 preview_template = """
 $fn=10;
 
-module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
-chamfer = break/10*chamfer_multi;
-hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
-// external hinge
-translate([0,0,height/2]) rotate([90,0,0])
-linear_extrude(hinge_h_thick) {{
-// external circle
-circle(d=hinge_diam);
-// squared cornern hing
-translate([0,-hinge_diam/2,0])
-square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), hinge_diam]);}};
-}};
-
-module diff_hinge(height, hinge_diam=5, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
-hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
+module diff(height, break=4, break_len=200){{
 // line break
 linear_extrude(height)
-translate([(hinge_pin_diam+vert_tolerance)/2,-break_len/2-hinge_h_thick/2,0])
-square([break/2, break_len]);
+square([break, break_len], center=true);
 }};
 
-
-module uni_ball(height, ball_diam=5, tolerance=0.4, break=3){{
-// internal ball left
-translate([-ball_diam/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
-// internal ball right
-translate([ball_diam/2+break/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
-// connection cylinder
-translate([break/4, 0,height/2])
-rotate([90, 0, 90])
-cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
-}};
-
-module diff_ball(height, ball_diam=5, break=4, break_len=200, expose=false, chamfer_multi=6){{
-chamfer = break/10*chamfer_multi;
-// line break
-linear_extrude(height+1)
-translate([0,-break_len/2,0])
-square([break/2, break_len]);
-}};
-
-difference(){{
-  linear_extrude(height = {HEIGHT})
-    translate(v=[{X_TRAN},{Y_TRAN},0])
-      rotate(a=[0,0,{Z_DEG}])
-        scale([{X_SCALE},{Y_SCALE},1])
-          import(file = "file.svg", center = true);
-"""
-
-run_template = """
-$fn=50;
-
-module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, hor_tolerance=0.4, chamfer_multi=6){{
-chamfer = break/10*chamfer_multi;
-hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
+module uni_hinge(height, hinge_diam=5, hinge_h_thick=5, vert_tolerance=0.8, break=4, chamfer_multi=1){{
+chamfer = break*chamfer_multi;
+pin_diam = (hinge_diam-vert_tolerance)/3;
 // external hinge
-translate([0,0,height/2]) rotate([90,0,0])
+translate([-break/2-pin_diam/2,hinge_h_thick/2,height/2])
+rotate([90,0,0])
 linear_extrude(hinge_h_thick)
-difference(){{
 // external circle
-union(){{
 circle(d=hinge_diam);
 // squared cornern hing
-translate([0,-hinge_diam/2,0])
-square([(hinge_pin_diam+vert_tolerance)/2+chamfer*sqrt(2), hinge_diam]);}};
-// internal hole + tolerance
-circle(d=hinge_pin_diam+vert_tolerance);}};
-// internal pin
-translate([0,hor_tolerance, height/2]) rotate([90,0,0])
-cylinder(h=hinge_h_thick+hor_tolerance*2, d=hinge_pin_diam);
+linear_extrude(hinge_diam)
+translate([-(chamfer*sqrt(2)/2-break/2)/2,0,0])
+square([break/2+chamfer*sqrt(2)/2, hinge_h_thick], center=true);
 }};
-
-module diff_hinge(height, hinge_diam=5, hinge_h_thick=5, hor_tolerance=0.4, vert_tolerance=0.8, break=4, chamfer_multi=6, break_len=200){{
-chamfer = break/10*chamfer_multi;
-hinge_pin_diam = (hinge_diam-vert_tolerance)/3;
-hinge_v_thick = (height-hinge_pin_diam-vert_tolerance)/2;
-// line break
-linear_extrude(height)
-translate([(hinge_pin_diam+vert_tolerance)/2,-break_len/2-hinge_h_thick/2,0])
-square([break/2, break_len]);
-// square for difference
-translate([-hor_tolerance/2,+hor_tolerance,height/2]) rotate([90,0,0])
-linear_extrude(hinge_h_thick+hor_tolerance*2)
-square([hinge_diam+hor_tolerance, height], center=true);
-//chamfer bottom and top
-for (i=[0, height]){{
-translate([(hinge_pin_diam+vert_tolerance)/2+break/4,-break_len/2-hinge_h_thick/2,i])
-translate([-chamfer*sqrt(2)/2,0,0])
-rotate([0, 45, 0])
-linear_extrude(chamfer)
-square([chamfer, break_len]);}};
-}};
-
 
 module uni_ball(height, ball_diam=5, tolerance=0.4, break=3){{
 // internal ball left
-translate([-ball_diam/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
+translate([-ball_diam/2-break/2, 0, height/2]) sphere(r=ball_diam/2);
 // internal ball right
-translate([ball_diam/2+break/2, 0, height/2]) sphere(r=(ball_diam-tolerance)/2);
+translate([ball_diam/2+break/2, 0, height/2]) sphere(r=ball_diam/2);
 // connection cylinder
-translate([break/4, 0,height/2])
+translate([0, 0,height/2])
 rotate([90, 0, 90])
-cylinder(h=ball_diam+ball_diam/2+break/2-tolerance*2,r=ball_diam/4-tolerance, center=true);
-}};
-
-module diff_ball(height, ball_diam=5, break=4, break_len=200, expose=false, chamfer_multi=6){{
-chamfer = break/10*chamfer_multi;
-// adding hole offset
-con_hole_height = expose ? height*2 : ball_diam;
-hole_offest = expose ? 0 : (height - ball_diam)/2;
-// line break
-linear_extrude(height+1)
-translate([0,-break_len/2,0])
-square([break/2, break_len]);
-// external ball left
-translate([-ball_diam/2, 0, height/2])
-sphere(r=ball_diam/2);
-// external ball right
-translate([ball_diam/2+break/2, 0, height/2])
-sphere(r=ball_diam/2);
-// connection hole
-translate([break/4, 0, hole_offest])
-linear_extrude(con_hole_height)
-square([ball_diam+ball_diam/2+break/2, ball_diam/2], center=true);
-//chamfer bottom and top
-for (i=[0, height]){{
-translate([break/4,-break_len/2,i])
-translate([-chamfer*sqrt(2)/2,0,0])
-rotate([0, 45, 0])
-linear_extrude(chamfer)
-square([chamfer, break_len]);}};
+cylinder(h=ball_diam+break,r=ball_diam/4, center=true);
 }};
 
 difference(){{
@@ -267,13 +217,15 @@ if __name__ == "__main__":
             os.remove(file)
 
     st.title('Flexifier: make it flexi')
-    st.write('Generate flexi 3D models from images! You can find more information here [Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi).')
+    st.write("Generate flexi 3D models from images! If you like the project put a like on [Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) or [support me with a coffee](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)! On Printables you can find more info about the project.", unsafe_allow_html=True)
 
-    col1, col2, = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     # Input type 
     with col1:
-        filetype = st.selectbox('Choose the file type', ['png', 'jpg', 'svg', 'jpeg'])
+        filetype = st.selectbox('Input file type', ['png', 'jpg', 'svg', 'jpeg'])
     with col2:
+        out = st.selectbox('Output file type', ['stl', 'step'])
+    with col3:
         interface = st.selectbox('Interface', ['slider', 'number'])
     numb = False
     if interface == 'number':
@@ -377,7 +329,7 @@ if __name__ == "__main__":
 
 
         def_values = {'h_tran': [0.0, 0.0], 'h_rot': 0.0, 'h_break': 3.0, 'h_break_len': ylen*2,
-                      'h_diam': height, 'h_thick': 5.0, 'h_expose': "false"}
+                      'h_diam': height, 'h_thick': 5.0, 'h_expose': True}
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -397,7 +349,7 @@ if __name__ == "__main__":
                     hinges[ind]['h_break_len'] = 100.0
                     hinges[ind]['h_diam'] = height
                     hinges[ind]['h_thick'] = 5.0
-                    hinges[ind]['h_expose'] = "false"
+                    hinges[ind]['h_expose'] = True
                     st.session_state['hinges'].update(hinges)
                     st.experimental_rerun()
                 else:
@@ -440,14 +392,12 @@ if __name__ == "__main__":
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 if hinges[ref]['type'] == 'normal':
-                    h_expose = "false"
+                    h_expose = False
                     if numb: h_thick = st.number_input('Hinge thickness', value=def_values['h_thick'])
                     else: h_thick = st.slider('Hinge thickness', 0.1, 20.0, step=0.1, value=def_values['h_thick'])
                 else:
                     h_thick = def_values['h_thick']
                     h_expose = st.checkbox('Expose ball joint', value=True)
-                    if h_expose: h_expose = "true"
-                    else: h_expose = "false"
             with col2:
                 if numb: h_diam = st.number_input('Joint external diameter', value=def_values['h_diam'])
                 else: h_diam = st.slider('Joint external diameter', 0.1, height, step=0.1, value=def_values['h_diam'])
@@ -456,7 +406,7 @@ if __name__ == "__main__":
                 else: h_break = st.slider('Image cut thickness',  0.1, max([ylen, xlen]), step=0.1, value=def_values['h_break'])
             with col4:
                 if numb: h_break_len = st.number_input('Image cut length', value=def_values['h_break_len'])
-                else: h_break_len = st.slider('Image cut length', h_thick, math.sqrt(ylen**2+xlen**2)*2, step=0.1, value=def_values['h_break_len'])
+                else: h_break_len = st.slider('Image cut length', h_thick, sqrt(ylen**2+xlen**2)*2, step=0.1, value=def_values['h_break_len'])
 
             hinges[ref]['h_tran'] = h_tran
             hinges[ref]['h_rot'] = h_rot
@@ -473,21 +423,24 @@ if __name__ == "__main__":
         if preview:
             height_model = height/2
             openscad_template = preview_template
-        else:
-            height_model = height
-            openscad_template = run_template
-        # resize the scale of the svg
-        templ = openscad_template.format(HEIGHT=height_model, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
-        run = build_hinges(st.session_state['hinges'], templ)
-        with open('run.scad', 'w') as f:
-            f.write(run)
-        if preview:
-            subprocess.run('xvfb-run -a openscad -o preview.png --camera 0,0,0,0,0,0,0 --autocenter --viewall --view axes,scales  --projection=ortho run.scad', shell = True)
+            # resize the scale of the svg
+            templ = openscad_template.format(HEIGHT=height_model, X_TRAN=tran[0], Y_TRAN=tran[1], X_SCALE=scales[0], Y_SCALE=scales[1], Z_DEG=rot)
+            run = build_preview(st.session_state['hinges'], templ)
+            with open('run.scad', 'w') as f:
+                f.write(run)
+            if preview:
+                subprocess.run('xvfb-run -a openscad -o preview.png --camera 0,0,0,0,0,0,0 --autocenter --viewall --view axes,scales  --projection=ortho run.scad', shell = True)
         else:
             start = time.time()
             # run openscad
             with st.spinner('Rendering in progress...'):
-                subprocess.run(f'openscad run.scad -o file.stl', shell = True)
+                res = cq.importers.importDXF("file.dxf").wires().toPending().extrude(height)
+                for h in hinges.values():
+                    if h['type'] == 'normal':
+                        res = normal_hinge(h, res)
+                    else:
+                        res = ball_joint(h, res)
+                cq.exporters.export(res, f'file.{out}')
             end = time.time()
             st.success(f'Rendered in {int(end-start)} seconds', icon="✅")
 
@@ -495,28 +448,29 @@ if __name__ == "__main__":
             if 'preview.png' not in os.listdir():
                 st.error('OpenScad was not able to generate the preview', icon="🚨")
                 st.stop()
-            colors_text = 'Preview image:'
+            colors_text = 'Quick preview'
             for index in st.session_state['hinges']:
-                colors_text += f' <span style="color:{color[index-1]}">Hinge {index},</span>'
+                colors_text = colors_text + f' <span style="color:{color[index-1]}">Hinge {index},</span>'
             st.markdown(colors_text, unsafe_allow_html=True)
             image = Image.open('preview.png')
             st.image(image, caption='Openscad preview')
             image.close()
         else:
-            if 'file.stl' not in os.listdir():
-                st.error('OpenScad was not able to generate the mesh', icon="🚨")
+            if f'file.{out}' not in os.listdir():
+                st.error('The program was not ot able to generate the mesh', icon="🚨")
                 st.stop()
             st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
             st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
-            with open(f"file.stl", "rb") as file:
+            with open(f'file.{out}', "rb") as file:
                 btn = st.download_button(
-                        label="Download model",
+                        label=f"Download {out}",
                         data=file,
-                        file_name="flexi.stl",
-                        mime="model/stl"
+                        file_name=f'flexi.{out}',
+                        mime=f"model/{out}"
                     )
             #html = create_download_link(file.read(), "model")
             #st.markdown(html, unsafe_allow_html=True)
-            #st.write('Interactive mesh preview:')
-            #st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
+            #if out=='stl':
+                #st.write('Interactive mesh preview:')
+                #st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
 
