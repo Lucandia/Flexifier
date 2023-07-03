@@ -434,6 +434,7 @@ if __name__ == "__main__":
             if preview:
                 subprocess.run('xvfb-run -a openscad -o preview.png --camera 0,0,0,0,0,0,0 --autocenter --viewall --view axes,scales  --projection=ortho run.scad', shell = True)
         else:
+            print('Rendering')
             start = time.time()
             # run openscad
             with st.spinner('Rendering in progress...'):
