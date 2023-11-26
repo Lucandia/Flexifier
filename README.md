@@ -3,7 +3,6 @@ A simple interface to generate flexi 3D models from images for 3D printing
 Visit the original [Printables page](https://www.printables.com/it/model/505713-flexifier-make-it-flexi)!
 
 ## Try the web app:
-
 [Flexifier web app](https://flexifier.streamlit.app/) powered by streamlit
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://flexifier.streamlit.app/)
