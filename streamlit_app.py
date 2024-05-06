@@ -271,7 +271,7 @@ if __name__ == "__main__":
             with col2:
                 if numb: scales[1] = scales[1] * st.number_input('Y scale %', min_value=0.0, value=100.0) / 100
                 else: scales[1] = scales[1] * st.slider('Y scale %', 0.0, 500.0, step=0.1, value=100.0) / 100
-        image_value.append(scale)
+        image_value.append(scales)
 
         # TRANSLATE
         tran = [0.0, 0.0]
