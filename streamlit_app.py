@@ -13,7 +13,7 @@ import os
 import time
 import base64 # to download from html link
 from math import sqrt
-hor_tolerance= 0.4
+hor_tolerance= 0.8
 vert_tolerance= 0.8
 chamfer_multi = 1
 
