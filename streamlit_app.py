@@ -1,9 +1,6 @@
 import subprocess
-import plotly
 import cadquery as cq
 import numpy as np
-from stl import mesh  # pip install numpy-stl
-import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
 import os
@@ -29,48 +26,6 @@ def stl2mesh3d(stl_mesh):
     J = np.take(ixr, [3*k+1 for k in range(p)])
     K = np.take(ixr, [3*k+2 for k in range(p)])
     return vertices, I, J, K
-
-def figure_mesh(filename):
-  my_mesh = mesh.Mesh.from_file(filename)
-  vertices, I, J, K = stl2mesh3d(my_mesh)
-  x, y, z = vertices.T
-  colorscale= [[0, '#e5dee5'], [1, '#e5dee5']]
-  mesh3D = go.Mesh3d(
-              x=x,
-              y=y,
-              z=z,
-              i=I,
-              j=J,
-              k=K,
-              name='mesh',
-              showscale=False,
-              colorscale=colorscale, 
-              intensity=z,
-              flatshading=True,)
-  title = "mesh"
-  layout = go.Layout(
-              paper_bgcolor='rgb(1,1,1)',
-              title_text=None,# title_x=0.5, font_color='white',
-              width=800,
-              height=800,
-              scene_camera=dict(eye=dict(x=1.25, y=-1.25, z=1)),
-              scene_xaxis_visible=True,
-              scene_yaxis_visible=True,
-              scene_zaxis_visible=False)
-  fig = go.Figure(data=[mesh3D], layout=layout)
-
-  fig.data[0].update(lighting=dict(ambient= 0.18,
-                                   diffuse= 1,
-                                   fresnel=  .1,
-                                   specular= 1,
-                                   roughness= .1,
-                                   facenormalsepsilon=0))
-  fig.data[0].update(lightposition=dict(x=3000,
-                                        y=3000,
-                                        z=10000));
-  fig.update_scenes(aspectmode='data')
-  fig.write_html("file_stl.html")
-  return fig
 
 def cut_image(h, res):
     chamfer = h['h_break']*chamfer_multi
@@ -467,11 +422,6 @@ if __name__ == "__main__":
                         file_name=f'flexi.{out}',
                         mime=f"model/{out}"
                     )
-            #html = create_download_link(file.read(), "model")
-            #st.markdown(html, unsafe_allow_html=True)
-            #if out=='stl':
-                #st.write('Interactive mesh preview:')
-                #st.plotly_chart(figure_mesh(f'file.stl'), use_container_width=True)
         st.markdown("Please, put a like [on Printables](https://www.printables.com/it/model/505713-flexifier-make-it-flexi) to support the project!", unsafe_allow_html=True)
         st.markdown("I am a student who enjoys 3D printing and programming. If you want to support me with a coffee, just [click here!](https://www.paypal.com/donate/?hosted_button_id=V4LJ3Z3B3KXRY)", unsafe_allow_html=True)
 
