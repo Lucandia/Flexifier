@@ -354,7 +354,7 @@ if __name__ == "__main__":
                     hinges[ind]['h_thick'] = 5.0
                     hinges[ind]['h_expose'] = True
                     st.session_state['hinges'].update(hinges)
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     ind = max(list(hinges)) + 1
                     hinges[ind] = dict()
@@ -365,7 +365,7 @@ if __name__ == "__main__":
                         hinges[ind]['type'] = hinge_type
                         hinges[ind]['h_thick'] = 5.0
                     st.session_state['hinges'].update(hinges)
-                    #st.experimental_rerun()
+                    #st.rerun()
         with col4:
             st.write('Remove hinge')
             if st.button('Remove'):
@@ -376,7 +376,7 @@ if __name__ == "__main__":
                     if st.session_state['hinges']:
                         ref = sorted(list(st.session_state['hinges']), reverse=True)[0]
                     else:
-                        st.experimental_rerun()
+                        st.rerun()
 
         if hinges:
             col1, col2, col3 = st.columns(3)
