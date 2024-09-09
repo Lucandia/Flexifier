@@ -1,9 +1,6 @@
 import subprocess
 import plotly
-try:
-    import cadquery as cq
-except: 
-    print('Not able to import cadquery')
+import cadquery as cq
 import numpy as np
 from stl import mesh  # pip install numpy-stl
 import plotly.graph_objects as go
