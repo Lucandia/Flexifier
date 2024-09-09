@@ -1,6 +1,3 @@
 pillow
-numpy
-numpy-stl
-plotly
-streamlit
+numpy==1.26.4
 cadquery
